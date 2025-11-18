@@ -9,25 +9,24 @@ A NestJS backend for private cross-chain payments supporting Zcash (via NEAR Int
 - Docker and Docker Compose
 - Node.js 20+ (for local development)
 
-### Running with Docker
+### Running with Docker (One Command)
 
-1. **Start services:**
-   ```bash
-   docker-compose up
-   ```
+**Start everything:**
+```bash
+docker-compose up
+```
 
-2. **Run Prisma migrations:**
-   ```bash
-   cd backend
-   npm install
-   npx prisma migrate dev
-   npx prisma db seed
-   ```
+This will automatically:
+- Start PostgreSQL database
+- Wait for database to be ready
+- Run Prisma migrations
+- Seed the database with a test merchant
+- Start the NestJS backend
 
-3. **Test the health endpoint:**
-   ```bash
-   curl http://localhost:3000/api/health
-   ```
+**Test the health endpoint:**
+```bash
+curl http://localhost:3000/api/health
+```
 
 ### Local Development
 

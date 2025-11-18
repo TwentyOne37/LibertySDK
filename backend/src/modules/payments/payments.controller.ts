@@ -19,5 +19,15 @@ export class PaymentsController {
     }
     return paymentIntent;
   }
+
+  @Get(':id/status')
+  async getStatus(@Param('id') id: string) {
+    return this.paymentsService.getStatus(id);
+  }
+
+  @Post(':id/quote-zec')
+  async quoteZec(@Param('id') id: string) {
+    return this.paymentsService.quoteZec(id);
+  }
 }
 

@@ -39,18 +39,25 @@ enum PaymentIntentMode {
 }
 
 model PaymentIntent {
-  id               String               @id @default(uuid())
-  merchantId       String
-  amount           String               // Decimal as string to avoid precision issues
-  currency         String
-  payoutAsset      String
-  payoutChain      String
-  status           PaymentIntentStatus  @default(CREATED)
-  mode             PaymentIntentMode
-  provider         String?              // 'intents', '1inch_fusion', etc.
-  providerMetadata Json?                // Flexible JSON for provider-specific data
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  id                      String               @id @default(uuid())
+  merchantId              String
+  amount                  String               // Decimal as string to avoid precision issues
+  currency                String
+  payoutAsset             String
+  payoutChain             String
+  status                  PaymentIntentStatus  @default(CREATED)
+  mode                    PaymentIntentMode
+  provider                String?              // 'intents', '1inch_fusion', etc.
+  providerMetadata        Json?                // Flexible JSON for provider-specific data
+  // NEAR Intents specific fields
+  intentsDepositAddress   String?
+  intentsOriginAssetId    String?
+  intentsDestinationAssetId String?
+  intentsSwapType         String?
+  intentsRawQuote         Json?
+  intentsStatus           String?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
 
   merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
 

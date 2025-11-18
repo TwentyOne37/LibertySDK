@@ -1,0 +1,59 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Merchant {
+  id            String   @id @default(uuid())
+  name          String
+  payoutAsset   String
+  payoutChain   String
+  payoutAddress String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  paymentIntents PaymentIntent[]
+
+  @@map("merchants")
+}
+
+enum PaymentIntentStatus {
+  CREATED
+  AWAITING_DEPOSIT
+  SWAPPING
+  COMPLETED
+  FAILED
+}
+
+enum PaymentIntentMode {
+  CHEAPEST
+  PRIVACY
+  MANUAL
+}
+
+model PaymentIntent {
+  id               String               @id @default(uuid())
+  merchantId       String
+  amount           String               // Decimal as string to avoid precision issues
+  currency         String
+  payoutAsset      String
+  payoutChain      String
+  status           PaymentIntentStatus  @default(CREATED)
+  mode             PaymentIntentMode
+  provider         String?              // 'intents', '1inch_fusion', etc.
+  providerMetadata Json?                // Flexible JSON for provider-specific data
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@map("payment_intents")
+}
+

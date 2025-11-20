@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -63,4 +64,3 @@ model PaymentIntent {
 
   @@map("payment_intents")
 }
-

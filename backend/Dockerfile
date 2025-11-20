@@ -1,9 +1,9 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
-# Install PostgreSQL client for health checks
-RUN apk add --no-cache postgresql-client
+# Install PostgreSQL client for health checks and OpenSSL for Prisma
+RUN apt-get update -y && apt-get install -y openssl postgresql-client
 
 # Install Prisma CLI globally for migrations
 RUN npm install -g prisma
@@ -12,8 +12,9 @@ RUN npm install -g prisma
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci
+# Install dependencies using npm install to ensure lockfile is updated if needed
+# (npm ci fails if lockfile is out of sync, which happens when we manually edit package.json)
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -25,13 +26,9 @@ RUN chmod +x docker-entrypoint.sh
 # Generate Prisma Client
 RUN npx prisma generate
 
-# Build the application
-RUN npm run build
-
 # Expose port
 EXPOSE 3000
 
 # Use entrypoint script
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["npm", "run", "start:prod"]
-
+CMD ["npm", "run", "start:dev"]

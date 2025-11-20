@@ -35,13 +35,33 @@ services:
       ONEINCH_FUSION_API_URL: ${ONEINCH_FUSION_API_URL:-https://api.1inch.io}
       ONEINCH_FUSION_API_KEY: ${ONEINCH_FUSION_API_KEY:-}
     ports:
-      - '3000:3000'
+      - '3001:3000'
     volumes:
       - ./backend:/app
       - /app/node_modules
       - /app/dist
+      # Exclude dist from volume mount to avoid EBUSY errors on host
+      # But we actually want to persist it or ignore it.
+      # The best strategy for "dist" in hot-reload nestjs is usually to let the container handle it.
+      # However, mounting the whole root ./backend:/app overwrites the container's /app/dist.
+      # We can use an anonymous volume for /app/dist to prevent host syncing issues.
     command: npm run start:dev
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: liberty-web
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_BACKEND_BASE_URL: http://localhost:3001/api
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
 
 volumes:
   postgres_data:
-

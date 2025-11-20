@@ -50,6 +50,15 @@ model PaymentIntent {
   mode                    PaymentIntentMode
   provider                String?              // 'intents', '1inch_fusion', etc.
   providerMetadata        Json?                // Flexible JSON for provider-specific data
+  
+  // 1inch / EVM specific fields
+  oneInchChainId      Int?
+  oneInchFromToken    String?
+  oneInchToToken      String?
+  oneInchQuote        Json?
+  oneInchTxHash       String?
+  oneInchStatus       String?
+
   // NEAR Intents specific fields
   intentsDepositAddress   String?
   intentsOriginAssetId    String?

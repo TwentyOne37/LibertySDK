@@ -2,6 +2,10 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import { NearIntentsClient } from '../../integrations/near-intents.client';
+import { OneInchClient } from '../../integrations/oneinch.client';
+import { QuoteEvmDto } from './dto/quote-evm.dto';
+import { BuildSwapTxDto } from './dto/build-swap-tx.dto';
+import { ConfirmEvmTxDto } from './dto/confirm-evm-tx.dto';
 import { INTENTS_TOKEN_IDS, getIntentsTokenInfo } from '../../config/intents-tokens.config';
 
 @Injectable()
@@ -9,6 +13,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly nearIntentsClient: NearIntentsClient,
+    private readonly oneInchClient: OneInchClient,
   ) {}
 
   async create(createPaymentIntentDto: CreatePaymentIntentDto) {
@@ -49,6 +54,8 @@ export class PaymentsService {
       payoutChain: paymentIntent.payoutChain,
       amount: paymentIntent.amount,
       currency: paymentIntent.currency,
+      oneInchStatus: paymentIntent.oneInchStatus,
+      oneInchTxHash: paymentIntent.oneInchTxHash,
     };
   }
 
@@ -133,5 +140,93 @@ export class PaymentsService {
       status: updatedIntent.status,
     };
   }
-}
 
+  async quoteEvm(id: string, dto: QuoteEvmDto) {
+    const paymentIntent = await this.findOne(id);
+    if (!paymentIntent) {
+      throw new NotFoundException(`Payment intent with ID ${id} not found`);
+    }
+
+    // We assume the payoutAsset in DB is the token address on the target chain.
+    // And for this flow, we assume target chain == user chain (dto.chainId).
+    // If not, this basic swap might fail or result in tokens on user chain, which is fine for MVP if merchant accepts it.
+    
+    // Convert amountDecimal to atomic units
+    const amountDecimal = parseFloat(dto.amountDecimal);
+    if (isNaN(amountDecimal)) {
+      throw new BadRequestException(`Invalid amount format: ${dto.amountDecimal}`);
+    }
+    
+    const atomicAmount = BigInt(Math.floor(amountDecimal * Math.pow(10, dto.fromTokenDecimals))).toString();
+
+    const quote = await this.oneInchClient.getQuote({
+      chainId: dto.chainId,
+      fromTokenAddress: dto.fromTokenAddress,
+      toTokenAddress: paymentIntent.payoutAsset,
+      amount: atomicAmount,
+    });
+
+    // Store the input amount in the quote object so we can use it later for building tx
+    const quoteWithInput = { ...quote, inputAmount: atomicAmount };
+
+    await this.prisma.paymentIntent.update({
+      where: { id },
+      data: {
+        provider: '1inch',
+        oneInchChainId: dto.chainId,
+        oneInchFromToken: dto.fromTokenAddress,
+        oneInchToToken: paymentIntent.payoutAsset,
+        oneInchQuote: quoteWithInput as any,
+        status: 'AWAITING_DEPOSIT', // Waiting for user to send tx
+      },
+    });
+
+    return {
+      quote: quoteWithInput,
+      expectedAmountOut: quote.dstAmount,
+    };
+  }
+
+  async buildEvmSwapTx(id: string, dto: BuildSwapTxDto) {
+    const paymentIntent = await this.findOne(id);
+    if (!paymentIntent) {
+      throw new NotFoundException(`Payment intent with ID ${id} not found`);
+    }
+
+    const quote = paymentIntent.oneInchQuote as any;
+    if (!quote || !quote.inputAmount) {
+      throw new BadRequestException('No valid 1inch quote found for this payment intent');
+    }
+
+    const tx = await this.oneInchClient.buildSwapTx({
+      chainId: dto.chainId,
+      fromTokenAddress: dto.fromTokenAddress,
+      toTokenAddress: paymentIntent.payoutAsset,
+      amount: quote.inputAmount,
+      fromAddress: dto.userAddress,
+      slippage: dto.slippageBps / 100, // bps to percent (100 bps = 1%)
+
+
+    });
+
+    return tx;
+  }
+
+  async confirmEvmTx(id: string, dto: ConfirmEvmTxDto) {
+    const paymentIntent = await this.findOne(id);
+    if (!paymentIntent) {
+      throw new NotFoundException(`Payment intent with ID ${id} not found`);
+    }
+
+    await this.prisma.paymentIntent.update({
+      where: { id },
+      data: {
+        oneInchTxHash: dto.txHash,
+        status: 'COMPLETED', // Assume success for Day 4
+        oneInchStatus: 'SUCCESS',
+      },
+    });
+
+    return { success: true };
+  }
+}

@@ -24,6 +24,13 @@ export interface PaymentIntent {
   intentsDepositAddress?: string | null;
   expectedAmountInZec?: string | null;
   intentsRawQuote?: any;
+  // EVM fields
+  oneInchChainId?: number | null;
+  oneInchFromToken?: string | null;
+  oneInchToToken?: string | null;
+  oneInchQuote?: any;
+  oneInchTxHash?: string | null;
+  oneInchStatus?: string | null;
 }
 
 export interface PaymentStatus {
@@ -34,6 +41,37 @@ export interface PaymentStatus {
   currency: string;
   payoutAsset: string;
   payoutChain: string;
+  // EVM fields
+  oneInchStatus?: string | null;
+  oneInchTxHash?: string | null;
+}
+
+export interface QuoteEvmParams {
+  paymentIntentId: string;
+  chainId: number;
+  fromTokenAddress: string;
+  fromTokenDecimals: number;
+  amountDecimal: string;
+}
+
+export interface BuildSwapTxParams {
+  paymentIntentId: string;
+  chainId: number;
+  fromTokenAddress: string;
+  userAddress: string;
+  slippageBps: number;
+}
+
+export interface OneInchQuote {
+  dstAmount: string;
+  [key: string]: any;
+}
+
+export interface OneInchSwapTx {
+  to: string;
+  data: string;
+  value: string;
+  gas: number;
 }
 
 export interface LibertyPayClientOptions {
@@ -87,6 +125,45 @@ export class LibertyPayClient {
       return response.data;
     } catch (error: any) {
       throw new Error(`Failed to get payment status: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  async quoteEvm(params: QuoteEvmParams): Promise<{ quote: OneInchQuote; expectedAmountOut: string }> {
+    try {
+      const response = await this.client.post(`payment-intents/${params.paymentIntentId}/quote-evm`, {
+        chainId: params.chainId,
+        fromTokenAddress: params.fromTokenAddress,
+        fromTokenDecimals: params.fromTokenDecimals,
+        amountDecimal: params.amountDecimal,
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(`Failed to quote EVM: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  async buildEvmSwapTx(params: BuildSwapTxParams): Promise<OneInchSwapTx> {
+    try {
+      const response = await this.client.post(`payment-intents/${params.paymentIntentId}/evm-swap-tx`, {
+        chainId: params.chainId,
+        fromTokenAddress: params.fromTokenAddress,
+        userAddress: params.userAddress,
+        slippageBps: params.slippageBps,
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(`Failed to build EVM swap tx: ${error.response?.data?.message || error.message}`);
+    }
+  }
+
+  async confirmEvmTx(paymentIntentId: string, txHash: string): Promise<{ success: boolean }> {
+    try {
+      const response = await this.client.post(`payment-intents/${paymentIntentId}/evm-tx-confirm`, {
+        txHash,
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(`Failed to confirm EVM tx: ${error.response?.data?.message || error.message}`);
     }
   }
 }

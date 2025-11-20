@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import { NearIntentsClient } from '../../integrations/near-intents.client';
-import { INTENTS_TOKEN_IDS } from '../../config/intents-tokens.config';
+import { INTENTS_TOKEN_IDS, getIntentsTokenInfo } from '../../config/intents-tokens.config';
 
 @Injectable()
 export class PaymentsService {
@@ -64,35 +64,40 @@ export class PaymentsService {
       );
     }
 
-    // Determine token IDs
-    const originAssetId = INTENTS_TOKEN_IDS.ZEC;
-    let destinationAssetId: string;
+    // Determine token IDs and decimals
+    const originAssetInfo = INTENTS_TOKEN_IDS.ZEC;
+    let destinationAssetInfo: { id: string; decimals: number };
     
     try {
-      // For now, assume payoutAsset is USDC and payoutChain is ethereum
-      // In production, you'd map this more dynamically
-      if (paymentIntent.payoutAsset.toUpperCase() === 'USDC' && 
-          paymentIntent.payoutChain.toLowerCase().includes('ethereum')) {
-        destinationAssetId = INTENTS_TOKEN_IDS.USDC_ETHEREUM;
-      } else {
-        throw new Error(`Unsupported payout asset/chain: ${paymentIntent.payoutAsset} on ${paymentIntent.payoutChain}`);
-      }
+      // Get destination token info using helper
+      destinationAssetInfo = getIntentsTokenInfo(
+        paymentIntent.payoutAsset,
+        paymentIntent.payoutChain
+      );
     } catch (error) {
       throw new BadRequestException(
         `Failed to determine destination token ID: ${error.message}`,
       );
     }
 
-    // Convert amount to smallest unit (assuming 18 decimals for ZEC, but should be configurable)
-    // For now, we'll pass the amount as-is and let Intents API handle it
-    const amountInSmallestUnit = paymentIntent.amount;
+    // Convert amount to smallest unit based on destination decimals (EXACT_OUTPUT)
+    // We assume amount is a decimal string like "100.00"
+    const amountDecimal = parseFloat(paymentIntent.amount);
+    if (isNaN(amountDecimal)) {
+      throw new BadRequestException(`Invalid amount format: ${paymentIntent.amount}`);
+    }
+
+    // Calculate atomic units: amount * 10^decimals
+    // Using BigInt for precision would be better for production, but number/string works for now given JS constraints
+    // Ideally use a library like 'bignumber.js' or 'ethers' for currency math
+    const atomicAmount = Math.floor(amountDecimal * Math.pow(10, destinationAssetInfo.decimals)).toString();
 
     // Get quote with deposit address
     const quoteResponse = await this.nearIntentsClient.getQuoteWithDeposit({
-      originAsset: originAssetId,
-      destinationAsset: destinationAssetId,
+      originAsset: originAssetInfo.id,
+      destinationAsset: destinationAssetInfo.id,
       swapType: 'EXACT_OUTPUT', // Merchant must get exact amount
-      amount: amountInSmallestUnit,
+      amount: atomicAmount,
       destinationAddress: paymentIntent.merchant.payoutAddress,
       slippageTolerance: 50, // 0.5% slippage tolerance (50 bps)
     });
@@ -106,8 +111,8 @@ export class PaymentsService {
       where: { id },
       data: {
         intentsDepositAddress: quoteResponse.depositAddress,
-        intentsOriginAssetId: originAssetId,
-        intentsDestinationAssetId: destinationAssetId,
+        intentsOriginAssetId: originAssetInfo.id,
+        intentsDestinationAssetId: destinationAssetInfo.id,
         intentsSwapType: 'EXACT_OUTPUT',
         intentsRawQuote: quoteResponse as any,
         intentsStatus: 'PENDING_DEPOSIT',

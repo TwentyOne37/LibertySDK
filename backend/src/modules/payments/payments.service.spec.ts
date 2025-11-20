@@ -223,11 +223,14 @@ describe('PaymentsService', () => {
         status: 'AWAITING_DEPOSIT',
       });
 
+      // Calculate expected atomic amount: 100.00 * 10^6 = 100000000
+      const expectedAtomicAmount = '100000000';
+
       expect(nearIntentsClient.getQuoteWithDeposit as jest.Mock).toHaveBeenCalledWith({
         originAsset: 'zec-mainnet',
         destinationAsset: 'usdc-ethereum-mainnet',
         swapType: 'EXACT_OUTPUT',
-        amount: mockPaymentIntent.amount,
+        amount: expectedAtomicAmount,
         destinationAddress: mockMerchant.payoutAddress,
         slippageTolerance: 50,
       });

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 import { getNearIntentsConfig, NearIntentsConfig } from '../config/near-intents.config';
 import { IntentsQuoteParams } from './intents-quote-params';
@@ -29,6 +29,7 @@ export interface NearIntentsStatusResponse {
 
 @Injectable()
 export class NearIntentsClient {
+  private readonly logger = new Logger(NearIntentsClient.name);
   private readonly config: NearIntentsConfig;
   private readonly httpClient: AxiosInstance;
 
@@ -52,11 +53,7 @@ export class NearIntentsClient {
       const response = await this.httpClient.get('/v0/tokens');
       return response.data;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(
-          `Failed to fetch tokens from NEAR Intents: ${error.message}`,
-        );
-      }
+      this.handleError('fetch tokens', error);
       throw error;
     }
   }
@@ -72,11 +69,7 @@ export class NearIntentsClient {
       });
       return response.data;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(
-          `Failed to get quote from NEAR Intents: ${error.message}`,
-        );
-      }
+      this.handleError('get quote (dry)', error);
       throw error;
     }
   }
@@ -94,11 +87,7 @@ export class NearIntentsClient {
       });
       return response.data;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(
-          `Failed to get quote with deposit from NEAR Intents: ${error.message}`,
-        );
-      }
+      this.handleError('get quote with deposit', error);
       throw error;
     }
   }
@@ -115,13 +104,28 @@ export class NearIntentsClient {
       });
       return response.data;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(
-          `Failed to get status from NEAR Intents: ${error.message}`,
-        );
-      }
+      this.handleError('get status', error);
       throw error;
     }
+  }
+
+  private handleError(operation: string, error: any) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const data = error.response?.data;
+      this.logger.error(
+        `Failed to ${operation}: ${error.message}`,
+        {
+          status,
+          data: JSON.stringify(data),
+        },
+      );
+      throw new Error(
+        `Failed to ${operation} from NEAR Intents: ${error.message}`,
+      );
+    }
+    this.logger.error(`Failed to ${operation}: ${error.message}`, error.stack);
+    throw error;
   }
 }
 

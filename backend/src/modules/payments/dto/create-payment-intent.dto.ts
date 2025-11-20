@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsNotEmpty } from 'class-validator';
+import { IsString, IsEnum, IsNotEmpty, IsDecimal, Matches } from 'class-validator';
 
 export enum PaymentIntentMode {
   CHEAPEST = 'CHEAPEST',
@@ -11,7 +11,7 @@ export class CreatePaymentIntentDto {
   @IsNotEmpty()
   merchantId: string;
 
-  @IsString()
+  @IsDecimal({ decimal_digits: '0,18' }, { message: 'Amount must be a valid decimal string' })
   @IsNotEmpty()
   amount: string;
 

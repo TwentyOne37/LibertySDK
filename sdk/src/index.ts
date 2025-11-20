@@ -36,15 +36,15 @@ export interface PaymentStatus {
   payoutChain: string;
 }
 
-export interface ZypherpayClientOptions {
+export interface LibertyPayClientOptions {
   baseUrl: string;
   apiKey?: string;
 }
 
-export class ZypherpayClient {
+export class LibertyPayClient {
   private client: AxiosInstance;
 
-  constructor(private options: ZypherpayClientOptions) {
+  constructor(private options: LibertyPayClientOptions) {
     this.client = axios.create({
       baseURL: options.baseUrl,
       headers: options.apiKey ? { 'x-api-key': options.apiKey } : {},

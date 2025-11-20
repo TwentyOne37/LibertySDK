@@ -1,7 +1,7 @@
-import { ZypherpayClient } from '../src/index';
+import { LibertyPayClient } from '../src/index';
 
 async function main() {
-  const client = new ZypherpayClient({
+  const client = new LibertyPayClient({
     baseUrl: process.env.BACKEND_URL || 'http://localhost:3001/api',
     apiKey: 'test-api-key',
   });

@@ -1,5 +1,5 @@
 {
-  "name": "@zypherpay/sdk",
+  "name": "liberty-pay/sdk",
   "version": "0.1.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,7 @@
     "axios": "^1.13.2"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.25",
     "typescript": "^5.0.0"
   }
 }

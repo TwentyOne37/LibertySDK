@@ -6,12 +6,14 @@ import { PaymentsService } from './payments.service';
 import { PaymentStatusPollerService } from './payment-status-poller.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NearIntentsClient } from '../../integrations/near-intents.client';
+import { OneInchClient } from '../../integrations/oneinch.client';
 import { PaymentIntentMode } from './dto/create-payment-intent.dto';
 
 describe('PaymentsController (e2e)', () => {
   let app: INestApplication;
   let prismaService: PrismaService;
   let nearIntentsClient: jest.Mocked<NearIntentsClient>;
+  let oneInchClient: jest.Mocked<OneInchClient>;
 
   const mockMerchant = {
     id: 'merchant-1',
@@ -40,6 +42,12 @@ describe('PaymentsController (e2e)', () => {
     intentsSwapType: null,
     intentsRawQuote: null,
     intentsStatus: null,
+    oneInchChainId: null,
+    oneInchFromToken: null,
+    oneInchToToken: null,
+    oneInchQuote: null,
+    oneInchTxHash: null,
+    oneInchStatus: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     merchant: mockMerchant,
@@ -51,6 +59,11 @@ describe('PaymentsController (e2e)', () => {
       getStatus: jest.fn(),
       getQuoteDry: jest.fn(),
       getTokens: jest.fn(),
+    };
+
+    const mockOneInchClient = {
+        getQuote: jest.fn(),
+        buildSwapTx: jest.fn(),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -82,6 +95,10 @@ describe('PaymentsController (e2e)', () => {
           provide: NearIntentsClient,
           useValue: mockNearIntentsClient,
         },
+        {
+            provide: OneInchClient,
+            useValue: mockOneInchClient,
+        }
       ],
     }).compile();
 
@@ -96,6 +113,7 @@ describe('PaymentsController (e2e)', () => {
 
     prismaService = moduleFixture.get<PrismaService>(PrismaService);
     nearIntentsClient = moduleFixture.get(NearIntentsClient);
+    oneInchClient = moduleFixture.get(OneInchClient);
 
     await app.init();
   });
@@ -232,6 +250,8 @@ describe('PaymentsController (e2e)', () => {
             payoutChain: mockPaymentIntent.payoutChain,
             amount: mockPaymentIntent.amount,
             currency: mockPaymentIntent.currency,
+            oneInchStatus: mockPaymentIntent.oneInchStatus,
+            oneInchTxHash: mockPaymentIntent.oneInchTxHash
           });
         });
     });
@@ -361,4 +381,3 @@ describe('PaymentsController (e2e)', () => {
     });
   });
 });
-

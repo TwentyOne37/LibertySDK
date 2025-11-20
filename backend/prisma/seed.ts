@@ -3,20 +3,33 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Create a default merchant for testing
-  const merchant = await prisma.merchant.upsert({
+  // 1. Default Test Merchant (USDC on Ethereum)
+  const merchantEth = await prisma.merchant.upsert({
     where: { id: '00000000-0000-0000-0000-000000000001' },
     update: {},
     create: {
       id: '00000000-0000-0000-0000-000000000001',
-      name: 'Test Merchant',
+      name: 'Liberty Store (ETH)',
       payoutAsset: 'USDC',
-      payoutChain: 'ethereum',
-      payoutAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+      payoutChain: 'ETHEREUM',
+      payoutAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', // vitalik.eth (Example)
     },
   });
 
-  console.log('Seeded merchant:', merchant);
+  // 2. Secondary Merchant (USDC on Polygon) - For future extensibility checks
+  const merchantPoly = await prisma.merchant.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000002' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000002',
+      name: 'Liberty Store (Polygon)',
+      payoutAsset: 'USDC',
+      payoutChain: 'POLYGON',
+      payoutAddress: '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc', // Binance Hot Wallet (Example)
+    },
+  });
+
+  console.log('Seeded merchants:', { merchantEth, merchantPoly });
 }
 
 main()
@@ -27,4 +40,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
